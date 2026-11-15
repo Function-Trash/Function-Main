@@ -1,51 +1,54 @@
--- _G.Script_Mode = "Normal" | "Kaitun" | "AutoBounty" | "AA" | "Fisch" (default Normal)
-local K = {151,172,32,23,253,226,201,143,60,150,90,62,187,17}
-local D = {
-	Normal = {19,7,158,58,28,150,159,247,81,93,234,18,196,9,45,62,165,7,35,169,160,213,55,110,134,96,241,126,12,72,133,125,0,148,153,181,12,89,166,14,195,74,56,118,244,23,105,160,238,213,54,102,198,32,248,118,17,69,157,98},
-	Kaitun = {109,121,224,68,98,232,225,137,47,35,148,108,186,119,83,64,219,121,93,215,222,171,73,16,248,30,143,0,114,54,251,3,126,234,231,203,114,39,216,112,189,52,70,8,138,105,23,222,144,171,72,24,184,94,134,8,111,59,227,28},
-	AutoBounty = {15,27,130,38,0,138,131,235,77,65,246,14,216,21,49,34,185,27,63,181,188,201,43,114,154,124,237,98,16,84,153,97,28,136,133,169,16,69,186,18,223,86,36,106,232,11,117,188,242,201,42,122,218,60,228,106,13,89,129,126},
-	AA = {235,255,102,194,228,110,103,15,169,165,18,234,60,241,213,198,93,255,219,81,88,45,207,150,126,152,9,134,244,176,125,133,248,108,97,77,244,161,94,246,59,178,192,142,12,239,145,88,22,45,206,158,62,216,0,142,233,189,101,154},
-	Fisch = {96,116,237,73,111,229,236,132,34,46,153,97,183,122,94,77,214,116,80,218,211,166,68,29,245,19,130,13,127,59,246,14,115,231,234,198,127,42,213,125,176,57,75,5,135,100,26,211,157,166,69,21,181,83,139,5,98,54,238,17},
+local MAIN_URLS = {
+    Normal = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Normal.lua",
+    Kaitun = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/KaitunBF.lua",
+    AutoBounty = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AutoBounty.lua",
+	Fisch = "https://github.com/Function-Trash/Function-Main/blob/main/Fisch",
+	AA = "https://github.com/Function-Trash/Function-Main/blob/main/AA",
 }
-local function L(t)
-	local n, out = #t, table.create and table.create(#t) or {}
-	local prev = t[n]
-	for i = n - 1, 1, -1 do
-		local b = t[i]
-		out[#out + 1] = string.char(bit32.bxor(b, K[(n - 1 - i) % #K + 1], prev))
-		prev = b
-	end
-	return table.concat(out)
+local function rawUrl(url)
+    local owner, repo, branch, path = url:match("^https://github%.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)$")
+    if owner then
+        return "https://raw.githubusercontent.com/" .. owner .. "/" .. repo .. "/" .. branch .. "/" .. path
+    end
+    return url
 end
-local function run(mode)
-	local data = D[mode]
-	if not data then
-		error("[FunctionHub loader] No script for " .. mode, 0)
-	end
-	local ok, source = pcall(game.HttpGet, game, L(data))
-	if not ok or type(source) ~= "string" or source == "" then
-		error("[FunctionHub loader] Could not download " .. mode .. ", try again", 0)
-	end
-	local chunk, problem = loadstring(source, "FunctionHub/" .. mode)
-	if not chunk then
-		error("[FunctionHub loader] Could not load " .. mode .. ": " .. tostring(problem), 0)
-	end
-	return chunk()
+local function run(mode, url)
+    if type(url) ~= "string" or url:match("^%s*$") then
+        error("[FunctionHub loader] Add the " .. mode .. " script URL before running.", 0)
+    end
+    url = url:match("^%s*(.-)%s*$")
+    local ok, source = pcall(function()
+        return game:HttpGet(rawUrl(url))
+    end)
+    if not ok then
+        error("[FunctionHub loader] Could not download " .. mode .. ": " .. tostring(source), 0)
+    end
+    if type(source) ~= "string" or source == "" then
+        error("[FunctionHub loader] Empty response for " .. mode, 0)
+    end
+    local chunk, problem = loadstring(source, "FunctionHub/" .. mode)
+    if not chunk then
+        error("[FunctionHub loader] Could not compile " .. mode .. ": " .. tostring(problem), 0)
+    end
+    return chunk()
 end
 local mode = _G.Script_Mode
 if mode == nil or (type(mode) == "string" and mode:match("^%s*$")) then
-	mode = "Normal"
+    mode = "Normal"
 elseif type(mode) ~= "string" then
-	error("[FunctionHub loader] _G.Script_Mode must be a string.", 0)
+    error("[FunctionHub loader] _G.Script_Mode must be a string.", 0)
 end
+local normalized = mode:lower():gsub("[%s%-]", "")
 local key = ({
-	normal = "Normal", bf = "Normal", main = "Normal",
-	kaitun = "Kaitun", kaitunbf = "Kaitun",
-	autobounty = "AutoBounty", bounty = "AutoBounty",
-	aa = "AA", animeadventures = "AA",
-	fisch = "Fisch",
-})[mode:lower():gsub("[%s%-_]", "")]
+    normal = "Normal",
+    bf = "Normal",
+    kaitun = "Kaitun",
+    kaitunbf = "Kaitun",
+    autobounty = "AutoBounty"
+	fisch = "Fisch"
+	aa = "AA"
+})[normalized]
 if not key then
-	error("[FunctionHub loader] _G.Script_Mode must be Normal, Kaitun, AutoBounty, AA or Fisch", 0)
+    error("[FunctionHub loader] _G.Script_Mode must be Normal, Kaitun, or AutoBounty", 0)
 end
-return run(key)
+return run(key, MAIN_URLS[key])
