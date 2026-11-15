@@ -1,10 +1,38 @@
-local MAIN_URLS = {
-    Normal = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Normal.lua",
-    Kaitun = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/KaitunBF.lua",
-    AutoBounty = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AutoBounty.lua",
-	Fisch = "https://raw.githubusercontent.com/Function-Trash/Function-Main/refs/heads/main/Fisch",
-	AA = "https://raw.githubusercontent.com/Function-Trash/Function-Main/refs/heads/main/AA,
+local GAMES = {
+    Normal = {
+        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Normal.lua",
+        aliases = { "normal", "bf", "bloxfruits" },
+    },
+    Kaitun = {
+        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/KaitunBF.lua",
+        aliases = { "kaitun", "kaitunbf" },
+    },
+    AutoBounty = {
+        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AutoBounty.lua",
+        aliases = { "autobounty", "bounty" },
+    },
+    Fisch = {
+        -- check the exact filename in the repo (Fisch vs Fisch.lua)
+        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Fisch",
+        aliases = { "fisch", "fish" },
+    },
+    AA = {
+        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AA",
+        aliases = { "aa", "animeadventures" },
+    },
 }
+
+-- build alias lookup automatically
+local ALIASES, NAMES = {}, {}
+for name, info in pairs(GAMES) do
+    ALIASES[name:lower()] = name
+    for _, a in ipairs(info.aliases or {}) do
+        ALIASES[a] = name
+    end
+    table.insert(NAMES, name)
+end
+table.sort(NAMES)
+
 local function rawUrl(url)
     local owner, repo, branch, path = url:match("^https://github%.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)$")
     if owner then
@@ -12,43 +40,41 @@ local function rawUrl(url)
     end
     return url
 end
+
 local function run(mode, url)
     if type(url) ~= "string" or url:match("^%s*$") then
         error("[FunctionHub loader] Add the " .. mode .. " script URL before running.", 0)
     end
-    url = url:match("^%s*(.-)%s*$")
+    url = rawUrl(url:match("^%s*(.-)%s*$"))
+
     local ok, source = pcall(function()
-        return game:HttpGet(rawUrl(url))
+        return game:HttpGet(url)
     end)
     if not ok then
         error("[FunctionHub loader] Could not download " .. mode .. ": " .. tostring(source), 0)
     end
-    if type(source) ~= "string" or source == "" then
-        error("[FunctionHub loader] Empty response for " .. mode, 0)
+    if type(source) ~= "string" or source == "" or source:match("^404") then
+        error("[FunctionHub loader] Bad/empty response for " .. mode .. " (" .. url .. ")", 0)
     end
+
     local chunk, problem = loadstring(source, "FunctionHub/" .. mode)
     if not chunk then
         error("[FunctionHub loader] Could not compile " .. mode .. ": " .. tostring(problem), 0)
     end
     return chunk()
 end
+
 local mode = _G.Script_Mode
 if mode == nil or (type(mode) == "string" and mode:match("^%s*$")) then
     mode = "Normal"
 elseif type(mode) ~= "string" then
     error("[FunctionHub loader] _G.Script_Mode must be a string.", 0)
 end
-local normalized = mode:lower():gsub("[%s%-]", "")
-local key = ({
-    normal = "Normal",
-    bf = "Normal",
-    kaitun = "Kaitun",
-    kaitunbf = "Kaitun",
-    autobounty = "AutoBounty"
-	fisch = "Fisch"
-	aa = "AA"
-})[normalized]
+
+local normalized = (mode:lower():gsub("[%s%-_]", ""))
+local key = ALIASES[normalized]
 if not key then
-    error("[FunctionHub loader] _G.Script_Mode must be Normal, Kaitun, or AutoBounty", 0)
+    error("[FunctionHub loader] _G.Script_Mode must be one of: " .. table.concat(NAMES, ", "), 0)
 end
-return run(key, MAIN_URLS[key])
+
+return run(key, GAMES[key].url)
