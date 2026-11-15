@@ -1,35 +1,72 @@
+-- Each game: the IDs that identify it, the script it loads by default, and its scripts.
+-- gameIds = universe ID (game.GameId), the same for every place/sea/lobby in that game.
+-- placeIds = backup check if the universe ID doesn't match.
 local GAMES = {
-    Normal = {
-        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Normal.lua",
-        aliases = { "normal", "bf", "bloxfruits" },
-    },
-    Kaitun = {
-        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/KaitunBF.lua",
-        aliases = { "kaitun", "kaitunbf" },
-    },
-    AutoBounty = {
-        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AutoBounty.lua",
-        aliases = { "autobounty", "bounty" },
+    BloxFruits = {
+        gameIds = { 994732206 },
+        placeIds = {
+            2753915549, 85211729168715,   -- First Sea
+            4442272183, 79091703265657,   -- Second Sea
+            7449423635, 100117331123089,  -- Third Sea
+        },
+        default = "Normal",
+        scripts = {
+            Normal = {
+                url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Normal.lua",
+                aliases = { "normal", "bf", "bloxfruits" },
+            },
+            Kaitun = {
+                url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/KaitunBF.lua",
+                aliases = { "kaitun", "kaitunbf" },
+            },
+            AutoBounty = {
+                url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AutoBounty.lua",
+                aliases = { "autobounty", "bounty" },
+            },
+        },
     },
     Fisch = {
-        -- check the exact filename in the repo (Fisch vs Fisch.lua)
-        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Fisch.lua",
-        aliases = { "fisch", "fish" },
+        gameIds = { 5750914919 },
+        placeIds = { 16732694052 },
+        default = "Fisch",
+        scripts = {
+            Fisch = {
+                url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Fisch.lua",
+                aliases = { "fisch", "fish" },
+            },
+        },
     },
     AA = {
-        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AA.lua",
-        aliases = { "aa", "animeadventures" },
+        gameIds = { 3183403065 },
+        placeIds = {
+            8304191830,       -- main Anime Adventures (Gomu)
+            117965110267191,  -- separate Gomu Development listing: remove if your AA script doesn't support it
+        },
+        default = "AA",
+        scripts = {
+            AA = {
+                url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AA.lua",
+                aliases = { "aa", "animeadventures" },
+            },
+        },
     },
 }
 
--- build alias lookup automatically
+local function normalize(s)
+    return (s:lower():gsub("[%s%-_]", ""))
+end
+
+-- build alias lookup automatically: alias -> { game = "BloxFruits", script = "Kaitun" }
 local ALIASES, NAMES = {}, {}
-for name, info in pairs(GAMES) do
-    ALIASES[name:lower()] = name
-    for _, a in ipairs(info.aliases or {}) do
-        ALIASES[a] = name
+for gameName, g in pairs(GAMES) do
+    for scriptName, info in pairs(g.scripts) do
+        local entry = { game = gameName, script = scriptName }
+        ALIASES[normalize(scriptName)] = entry
+        for _, a in ipairs(info.aliases or {}) do
+            ALIASES[normalize(a)] = entry
+        end
+        table.insert(NAMES, scriptName)
     end
-    table.insert(NAMES, name)
 end
 table.sort(NAMES)
 
@@ -64,17 +101,53 @@ local function run(mode, url)
     return chunk()
 end
 
+local function detectGame()
+    local placeId, gameId = game.PlaceId, game.GameId
+    for gameName, g in pairs(GAMES) do
+        for _, id in ipairs(g.gameIds or {}) do
+            if id == gameId then return gameName end
+        end
+    end
+    for gameName, g in pairs(GAMES) do
+        for _, id in ipairs(g.placeIds or {}) do
+            if id == placeId then return gameName end
+        end
+    end
+    return nil
+end
+
+-- read _G.Script_Mode (optional)
 local mode = _G.Script_Mode
-if mode == nil or (type(mode) == "string" and mode:match("^%s*$")) then
-    mode = "Normal"
-elseif type(mode) ~= "string" then
+if type(mode) == "string" and mode:match("^%s*$") then
+    mode = nil
+elseif mode ~= nil and type(mode) ~= "string" then
     error("[FunctionHub loader] _G.Script_Mode must be a string.", 0)
 end
 
-local normalized = (mode:lower():gsub("[%s%-_]", ""))
-local key = ALIASES[normalized]
-if not key then
+local wanted = mode and ALIASES[normalize(mode)]
+if mode and not wanted then
     error("[FunctionHub loader] _G.Script_Mode must be one of: " .. table.concat(NAMES, ", "), 0)
 end
 
-return run(key, GAMES[key].url)
+local detected = detectGame()
+
+if detected then
+    local g = GAMES[detected]
+    local scriptName = g.default
+    if wanted then
+        if wanted.game == detected then
+            scriptName = wanted.script
+        else
+            warn(("[FunctionHub loader] '%s' is not for this game, loading %s instead."):format(mode, g.default))
+        end
+    end
+    return run(scriptName, g.scripts[scriptName].url)
+end
+
+-- unknown game: allow a manual override, otherwise show the IDs so they can be added above
+if wanted then
+    warn(("[FunctionHub loader] Game not recognised (PlaceId %d, GameId %d), forcing %s."):format(game.PlaceId, game.GameId, wanted.script))
+    return run(wanted.script, GAMES[wanted.game].scripts[wanted.script].url)
+end
+
+error(("[FunctionHub loader] This game is not supported. PlaceId: %d, GameId: %d"):format(game.PlaceId, game.GameId), 0)
