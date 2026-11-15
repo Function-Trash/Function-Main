@@ -13,11 +13,11 @@ local GAMES = {
     },
     Fisch = {
         -- check the exact filename in the repo (Fisch vs Fisch.lua)
-        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Fisch",
+        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Fisch.lua",
         aliases = { "fisch", "fish" },
     },
     AA = {
-        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AA",
+        url = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AA.lua",
         aliases = { "aa", "animeadventures" },
     },
 }
