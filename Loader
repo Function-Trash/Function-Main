@@ -2,8 +2,8 @@ local MAIN_URLS = {
     Normal = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/Normal.lua",
     Kaitun = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/KaitunBF.lua",
     AutoBounty = "https://raw.githubusercontent.com/Function-Trash/Function-Main/main/AutoBounty.lua",
-	Fisch = "https://github.com/Function-Trash/Function-Main/blob/main/Fisch",
-	AA = "https://github.com/Function-Trash/Function-Main/blob/main/AA",
+	Fisch = "https://raw.githubusercontent.com/Function-Trash/Function-Main/refs/heads/main/Fisch",
+	AA = "https://raw.githubusercontent.com/Function-Trash/Function-Main/refs/heads/main/AA,
 }
 local function rawUrl(url)
     local owner, repo, branch, path = url:match("^https://github%.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)$")
